@@ -1,14 +1,13 @@
 APP_NAME			:= hello-app
 APP_DOCKERFILE_PATH := ./hello-logger/
 NETWORK_NAME 		:= logger-network
-LOG_PATH            := /logs/log.log  
 
-start: create-network create-volume start-app start-vector
+start: create-network create-volume start-app start-vector start-grafana start-elasticsearch
 
 clean:
 	-podman rm -f grafana elasticsearch $(APP_NAME) vector || true
-	-podman network rm $(NETWORK_NAME) || true
-	-podman volume rm -f hello-logger-logs
+	-podman network rm -f $(NETWORK_NAME) || true
+	-podman volume rm -f hello-logger-logs || true
 
 create-network:
 	@podman network exists $(NETWORK_NAME) || podman network create $(NETWORK_NAME)
