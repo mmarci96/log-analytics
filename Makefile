@@ -6,13 +6,14 @@ APP_NAME := hello-app
 APP_PORT := 8080
 APP_IMAGE_NAME := hello-logger
 
-start-app: start-elastic start-grafana start-vector
+start-app: start-elastic start-grafana
 	@echo "Starting app: $(APP_NAME) - from image: $(APP_IMAGE_NAME)..."
-	- podman start $(APP_NAME) || podman run -d --name $(APP_NAME) \
+	podman start $(APP_NAME) || podman run -d --name $(APP_NAME) \
 		--net $(NETWORK_NAME) \
 		-p $(APP_PORT):$(APP_PORT) \
-		--log-driver=journald \
-		localhost/hello-logger:latest 
+		--log-driver=k8s-file \
+		localhost/$(APP_IMAGE_NAME):latest
+
 
 stop-app: 
 	@echo "Stopping app: $(APP_NAME)..."
@@ -23,7 +24,7 @@ clean-app: stop-app
 	- podman rm $(APP_NAME)
 
 # Start both services
-start: start-elastic start-grafana start-vector start-app
+start: start-elastic start-grafana start-app start-vector 
 
 # Stop both services
 stop: stop-elastic stop-grafana stop-vector stop-app
@@ -32,13 +33,22 @@ stop: stop-elastic stop-grafana stop-vector stop-app
 clean: clean-elastic clean-grafana clean-vector clean-app destroy-network
 
 
-start-vector: create-network start-elastic start-app
-	@echo "Starting Vector..."
-	$(eval APP_ID := $(shell podman inspect --format '{{.Id}}' $(APP_NAME)))
 
+start-vector: create-network start-app
+	@echo "Starting Vector..."
+
+	# Get container ID after app has started
+	$(eval APP_ID := $(shell podman inspect --format '{{.Id}}' $(APP_NAME)))
 	$(eval LOG_PATH := $(HOME)/.local/share/containers/storage/overlay-containers/$(APP_ID)/userdata/ctr.log)
 
-	- podman start vector || podman run -d --name vector \
+	# Check if the ctr.log file exists
+	@if [ ! -f "$(LOG_PATH)" ]; then \
+		echo "❌ Log file not found: $(LOG_PATH)"; \
+		echo "   Make sure hello-app is running and uses --log-driver=k8s-file"; \
+		exit 1; \
+	fi
+
+	podman start vector || podman run -d --name vector \
 		--net $(NETWORK_NAME) \
 		-v $(PWD)/vector.yaml:/etc/vector/vector.yaml:ro \
 		-v $(LOG_PATH):/logs/ctr.log:ro \
