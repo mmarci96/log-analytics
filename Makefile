@@ -28,7 +28,7 @@ start-elasticsearch:
 		-e "ES_JAVA_OPTS=-Xms512m -Xmx512m" --memory=1g \
 		docker.io/library/elasticsearch:9.0.2
 
-start-app:
+start-app: build-app
 	podman run -d --replace --name $(APP_NAME) \
 		--net $(NETWORK_NAME) \
 		-p 8080:8080 \
