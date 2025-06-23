@@ -3,14 +3,36 @@ APP_DOCKERFILE_PATH := ./hello-logger/
 NETWORK_NAME 		:= logger-network
 LOG_PATH            := /logs/log.log  
 
-start: create-network start-elasticsearch start-grafana start-app start-vector
+start: create-network create-volume start-app start-vector
 
 clean:
 	-podman rm -f grafana elasticsearch $(APP_NAME) vector || true
 	-podman network rm $(NETWORK_NAME) || true
+	-podman volume rm -f hello-logger-logs
 
 create-network:
 	@podman network exists $(NETWORK_NAME) || podman network create $(NETWORK_NAME)
+
+start-app: create-network create-volume build-app
+	podman run -d --replace --name $(APP_NAME) \
+		--net $(NETWORK_NAME) \
+		-v hello-logger-logs:/logs \
+		-p 8080:8080 \
+		localhost/$(APP_NAME):latest
+
+build-app:
+	podman build -t $(APP_NAME) $(APP_DOCKERFILE_PATH)
+
+create-volume:
+	podman volume create hello-logger-logs
+
+start-vector: 
+	podman start vector || podman run -d --replace --name vector \
+		--net $(NETWORK_NAME) \
+		-v $(PWD)/vector.yaml:/etc/vector/vector.yaml:ro \
+		-v hello-logger-logs:/logs:ro \
+		docker.io/timberio/vector:latest-alpine \
+		-c /etc/vector/vector.yaml
 
 start-grafana:
 	podman run -d --replace --name grafana \
@@ -28,22 +50,4 @@ start-elasticsearch:
 		-e "xpack.security.enabled=false" \
 		-e "ES_JAVA_OPTS=-Xms512m -Xmx512m" --memory=1g \
 		docker.io/library/elasticsearch:9.0.2
-
-start-app: build-app create-network
-	podman run -d --replace --name $(APP_NAME) \
-		--net $(NETWORK_NAME) \
-		-v "$(PWD)/logs":/app/logs \
-		-p 8080:8080 \
-		localhost/$(APP_NAME):latest
-
-build-app:
-	podman build -t $(APP_NAME) $(APP_DOCKERFILE_PATH)
-
-start-vector: 
-	podman start vector || podman run -d --name vector \
-		--net $(NETWORK_NAME) \
-		-v $(PWD)/vector.yaml:/etc/vector/vector.yaml:ro \
-		-v $(PWD)/logs/log.log:/logs/log.log:ro \
-		docker.io/timberio/vector:latest-alpine \
-		-c /etc/vector/vector.yaml
 
