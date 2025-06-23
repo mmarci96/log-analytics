@@ -13,10 +13,10 @@ clean:
 create-network:
 	@podman network exists $(NETWORK_NAME) || podman network create $(NETWORK_NAME)
 
-start-app: create-network create-volume build-app
+start-app: build-app
 	podman run -d --replace --name $(APP_NAME) \
 		--net $(NETWORK_NAME) \
-		-v hello-logger-logs:/logs \
+		-v hello-logger-logs:/logs:rw \
 		-p 8080:8080 \
 		localhost/$(APP_NAME):latest
 
