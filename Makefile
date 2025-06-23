@@ -1,6 +1,7 @@
 APP_NAME := hello-app
 APP_DOCKERFILE_PATH = ./hello-logger/
 NETWORK_NAME := logger-network
+LOG_PATH := ./logs/log.log
 
 start: create-network start-elasticsearch start-grafana start-app start-vector
 
@@ -31,6 +32,7 @@ start-elasticsearch:
 start-app: build-app
 	podman run -d --replace --name $(APP_NAME) \
 		--net $(NETWORK_NAME) \
+		-v LOG_PATH=$(LOG_PATH)
 		-p 8080:8080 \
 		--log-driver k8s-file \
 		localhost/$(APP_NAME):latest
@@ -39,19 +41,19 @@ build-app:
 	podman build -t $(APP_NAME) $(APP_DOCKERFILE_PATH)
 
 start-vector: 
-	$(eval APP_ID := $(shell podman inspect --format '{{.Id}}' $(APP_NAME)))
-	$(eval LOG_PATH := $(HOME)/.local/share/containers/storage/overlay-containers/$(APP_ID)/userdata/ctr.log)
-
-	@if [ ! -f "$(LOG_PATH)" ]; then \
-		echo "❌ Log file not found: $(LOG_PATH)"; \
-		echo "   Make sure $(APP_NAME) is running and uses --log-driver=k8s-file"; \
-		exit 1; \
-	fi
+	# $(eval APP_ID := $(shell podman inspect --format '{{.Id}}' $(APP_NAME)))
+	# $(eval LOG_PATH := $(HOME)/.local/share/containers/storage/overlay-containers/$(APP_ID)/userdata/ctr.log)
+	#
+	# @if [ ! -f "$(LOG_PATH)" ]; then \
+	# 	echo "❌ Log file not found: $(LOG_PATH)"; \
+	# 	echo "   Make sure $(APP_NAME) is running and uses --log-driver=k8s-file"; \
+	# 	exit 1; \
+	# fi
 
 	podman start vector || podman run -d --name vector \
 		--net $(NETWORK_NAME) \
 		-v $(PWD)/vector.yaml:/etc/vector/vector.yaml:ro \
-		-v $(LOG_PATH):/logs/ctr.log:ro \
+		-v $(LOG_PATH):/logs/log.log:ro \
 		docker.io/timberio/vector:latest-alpine \
 		-c /etc/vector/vector.yaml
 
