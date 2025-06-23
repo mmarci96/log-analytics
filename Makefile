@@ -32,7 +32,7 @@ stop: stop-elastic stop-grafana stop-vector stop-app
 clean: clean-elastic clean-grafana clean-vector clean-app destroy-network
 
 
-start-vector: create-network start-elastic
+start-vector: create-network start-elastic start-app
 	@echo "Starting Vector..."
 	$(eval APP_ID := $(shell podman inspect --format '{{.Id}}' $(APP_NAME)))
 
