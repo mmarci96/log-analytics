@@ -1,0 +1,17 @@
+sources:
+  hello_app_logs:
+    type: file
+    include:
+      - /logs/ctr.log
+
+sinks:
+  elasticsearch:
+    type: elasticsearch
+    inputs:
+      - hello_app_logs
+    endpoints: ["http://elasticsearch:9200"]
+    mode: bulk
+    compression: none
+    healthcheck:
+      enabled: false
+
