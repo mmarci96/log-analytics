@@ -2,7 +2,7 @@ sources:
   hello_app_logs:
     type: file
     include:
-      - /logs/ctr.log
+      - /logs/log.log
 
 sinks:
   elasticsearch:
